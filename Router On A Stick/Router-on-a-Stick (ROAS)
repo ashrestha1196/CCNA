@@ -1,0 +1,271 @@
+# 🌐 Router-on-a-Stick (ROAS) — Inter-VLAN Routing Lab
+
+## 📌 Lab Overview
+
+This lab demonstrates how to configure **Router-on-a-Stick (ROAS)** to enable communication between devices in different VLANs using a single physical router interface.
+
+By default, VLANs create separate Layer 2 broadcast domains. Devices in different VLANs require a Layer 3 device to communicate.
+
+In this lab, I configured VLANs, access ports, 802.1Q trunk links, and router subinterfaces to establish inter-VLAN communication.
+
+**Lab status:** ✅ Completed — connectivity verified using ping tests and Cisco IOS command outputs.
+
+## 🎯 Lab Objectives
+
+- Create and configure VLANs on Cisco switches.
+- Assign switch access ports to the appropriate VLANs.
+- Configure 802.1Q trunk links.
+- Configure router subinterfaces for inter-VLAN routing.
+- Assign IPv4 addresses and default gateways.
+- Verify VLAN and trunk configurations.
+- Test connectivity within and between VLANs.
+- Practice basic network troubleshooting.
+
+## 🛠️ Tools and Technologies
+
+- Cisco Packet Tracer
+- Cisco IOS CLI
+- Ethernet Switching
+- IEEE 802.1Q VLAN Tagging
+- IPv4 Addressing
+- ARP and ICMP
+
+## 🖧 Network Topology
+
+The network consists of:
+
+- **1 Router:** R1
+- **2 Switches:** SW1 and SW2
+- **3 PCs:** PC-A, PC-B, and PC-C
+- **2 VLANs:** VLAN 10 and VLAN 20
+
+**Logical topology:**
+
+```text
+                     R1
+                      |
+                802.1Q Trunk
+                      |
+                     SW1
+                   /     \
+                 PC-A    SW2
+                          |
+                        /   \
+                      PC-B  PC-C
+```
+
+The switches use VLANs to separate Layer 2 traffic, while R1 provides Layer 3 routing between the VLANs.
+
+> Add the actual Packet Tracer topology screenshot here.
+
+`![Network Topology](screenshots/topology.png)`
+
+## 📋 IP Addressing Table
+
+| Device | VLAN | IP Address | Default Gateway |
+|---|---|---|---|
+| R1 G0/1.10 | 10 | 192.168.10.1/24 | N/A |
+| R1 G0/1.20 | 20 | 192.168.20.1/24 | N/A |
+| PC-A | 10 | 192.168.10.10/24 | 192.168.10.1 |
+| PC-B | 20 | 192.168.20.10/24 | 192.168.20.1 |
+| PC-C | 20 | 192.168.20.20/24 | 192.168.20.1 |
+
+## ⚙️ Configuration
+
+### 1. VLAN Configuration
+
+Created VLAN 10 and VLAN 20 on the switches.
+
+```cisco
+configure terminal
+
+vlan 10
+ name VLAN10
+
+vlan 20
+ name VLAN20
+```
+
+Assigned the appropriate access ports to their respective VLANs.
+
+Example:
+
+```cisco
+interface fastEthernet 0/1
+ switchport mode access
+ switchport access vlan 10
+```
+
+### 2. Trunk Configuration
+
+Configured trunk links to carry traffic belonging to multiple VLANs.
+
+Example:
+
+```cisco
+interface gigabitEthernet 0/1
+ switchport mode trunk
+ switchport trunk allowed vlan 10,20
+```
+
+The 802.1Q trunk allows VLAN 10 and VLAN 20 traffic to travel over the same physical connection.
+
+### 3. Router-on-a-Stick Configuration
+
+Configured router subinterfaces to act as default gateways for each VLAN.
+
+**R1 configuration:**
+
+```cisco
+enable
+configure terminal
+
+interface gigabitEthernet 0/1
+ no shutdown
+ exit
+
+interface gigabitEthernet 0/1.10
+ encapsulation dot1Q 10
+ ip address 192.168.10.1 255.255.255.0
+ exit
+
+interface gigabitEthernet 0/1.20
+ encapsulation dot1Q 20
+ ip address 192.168.20.1 255.255.255.0
+ exit
+```
+
+Each router subinterface is associated with a specific VLAN using 802.1Q encapsulation.
+
+The router performs Layer 3 forwarding between the VLAN networks.
+
+## 🔍 Verification
+
+### Verify VLANs
+
+```cisco
+show vlan brief
+```
+
+Used to confirm that VLANs exist and access ports are assigned correctly.
+
+### Verify Trunk Links
+
+```cisco
+show interfaces trunk
+```
+
+Used to verify:
+
+- Operational trunk ports
+- Allowed VLANs
+- Native VLAN
+- VLANs forwarding over the trunk
+
+### Verify Router Interfaces
+
+```cisco
+show ip interface brief
+```
+
+Used to check the operational status of the router's physical interface and subinterfaces.
+
+### Verify Routing Table
+
+```cisco
+show ip route
+```
+
+Expected connected routes:
+
+```text
+C 192.168.10.0/24 is directly connected, GigabitEthernet0/1.10
+C 192.168.20.0/24 is directly connected, GigabitEthernet0/1.20
+```
+
+### Connectivity Testing
+
+Performed ping tests to verify communication between hosts.
+
+| Source | Destination | Expected Result |
+|---|---|---|
+| PC-B | PC-C | Successful — Same VLAN |
+| PC-A | PC-B | Successful — Inter-VLAN |
+| PC-A | PC-C | Successful — Inter-VLAN |
+| PC-C | 192.168.20.1 | Successful — Default Gateway |
+
+The submitted lab outputs demonstrated successful inter-VLAN communication.
+
+Some initial ping attempts timed out before later attempts succeeded, consistent with ARP resolution or simulation convergence.
+
+> Add screenshots of your actual successful ping results.
+
+`![Ping Verification](screenshots/ping-results.png)`
+
+## 🧠 How Router-on-a-Stick Works
+
+When PC-A (VLAN 10) sends traffic to PC-B (VLAN 20):
+
+1. PC-A determines that PC-B is outside its local subnet.
+2. PC-A sends the Ethernet frame toward its default gateway, R1.
+3. SW1 forwards the frame toward R1 over the trunk, tagged for VLAN 10.
+4. R1 receives the frame through subinterface G0/1.10.
+5. R1 examines the destination IP address and consults its routing table.
+6. R1 forwards the packet through subinterface G0/1.20.
+7. The outgoing Ethernet frame is encapsulated for VLAN 20 and forwarded toward PC-B.
+
+**Important observation:** The source and destination IP addresses remain unchanged during normal routing without NAT, while the Ethernet source and destination MAC addresses change across the routed hop.
+
+## 🛠️ Troubleshooting Checklist
+
+If inter-VLAN communication fails, check the following:
+
+| Problem | What to Verify |
+|---|---|
+| VLAN missing | `show vlan brief` |
+| Incorrect access VLAN | `show interfaces <interface> switchport` |
+| Trunk not operational | `show interfaces trunk` |
+| VLAN not allowed on trunk | Trunk allowed VLAN list |
+| Router subinterface down | `show ip interface brief` |
+| Incorrect VLAN encapsulation | `show running-config` |
+| Incorrect PC gateway | PC IP configuration |
+| Missing routing information | `show ip route` |
+
+A key lesson from this lab was that successful connectivity depends on correct configuration across multiple devices, not just the router.
+
+## 💡 Key Takeaways
+
+Completing this lab helped reinforce several important networking concepts:
+
+- VLANs separate Layer 2 broadcast domains.
+- Inter-VLAN communication requires Layer 3 forwarding.
+- Router-on-a-Stick uses logical subinterfaces over one physical router interface.
+- 802.1Q tags identify VLAN membership on trunk links.
+- Trunk allowed VLAN lists can prevent traffic from reaching its destination.
+- A correct default gateway is essential for communication outside the local subnet.
+- Verification commands and ping tests are important troubleshooting tools.
+
+## 📂 Lab Files
+
+| File or Folder | Description |
+|---|---|
+| `ROAS-Lab.pkt` | Cisco Packet Tracer topology and configuration |
+| `configurations/` | Router and switch configuration files |
+| `screenshots/` | Topology and connectivity verification |
+| `README.md` | Lab documentation |
+
+## 🚀 Conclusion
+
+This lab provided hands-on experience configuring and verifying inter-VLAN routing using Router-on-a-Stick.
+
+More importantly, it helped me understand how switching, VLAN tagging, IP routing, ARP, and Ethernet encapsulation work together to deliver traffic across different networks.
+
+This is part of my ongoing **CCNA 200-301 learning and networking portfolio**.
+
+---
+
+**Learning Resource:** Jeremy's IT Lab — CCNA 200-301
+
+**Tools:** Cisco Packet Tracer | Cisco IOS
+
+**Topics:** VLANs | 802.1Q | Router-on-a-Stick | IPv4 | Troubleshooting
